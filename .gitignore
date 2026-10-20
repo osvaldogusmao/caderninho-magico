@@ -44,3 +44,4 @@ next-env.d.ts
 # página do claude.ai gerada pelo build do jogo (a do site fica em public/index.html)
 /jogo/caderninho-magico.html
 __pycache__/
+/jogo/icone/*.png

@@ -13,6 +13,10 @@ head_extra='''<!doctype html>
 <meta name="apple-mobile-web-app-title" content="Caderninho">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#F3F7FD">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="icon" href="/favicon.ico" sizes="any">
 '''
 reset=(f'<script>window.CM_API={api!r}</script>\n' if api else '')+'<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>\n'
 # the page's own <head> part (title, metas, links, style) stays in <head>; the markup and script go to <body>
