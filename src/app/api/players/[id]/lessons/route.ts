@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { DEFAULT_RULES, lessonGems, lessonSchema, normalizeCode, today } from "@/lib/game";
+import { dailyLimit, lessonGems, lessonSchema, normalizeCode, today } from "@/lib/game";
 
-// Registra uma lição terminada e dá os diamantes dela, respeitando o limite diário da família.
+// Registra uma lição terminada e dá os diamantes dela, respeitando o limite diário (do filho ou da família).
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const parsed = lessonSchema.safeParse(await req.json().catch(() => null));
@@ -13,7 +13,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!player || player.code !== normalizeCode(code)) {
     return NextResponse.json({ error: "Jogador não encontrado" }, { status: 404 });
   }
-  const limit = player.family?.dailyGemLimit ?? DEFAULT_RULES.dailyGemLimit;
+  const limit = dailyLimit(player);
   const day = today();
 
   const result = await prisma.$transaction(async (tx) => {

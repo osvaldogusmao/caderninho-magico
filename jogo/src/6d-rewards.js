@@ -92,11 +92,11 @@ const ss={get(k){try{return sessionStorage.getItem('cm-'+k)}catch(e){return null
 const fam=()=>S.fam||(S.fam={token:ss.get('famtoken'),familyId:store.get('family',null),mode:null,data:null,report:null,kid:null,err:''});
 const famApi=(path,method,body)=>api('/family'+path,method,body,fam().token);
 function openParents(){const F=fam();F.err='';S.screen='parents';render();if(F.token)loadFamily()}
-function famLogout(){const F=fam();F.rulesMsg='';F.token=null;F.data=null;F.report=null;ss.set('famtoken',null);render()}
+function famLogout(){const F=fam();F.rulesMsg='';F.kidMsg='';F.addOpen=false;F.add=null;F.token=null;F.data=null;F.report=null;ss.set('famtoken',null);render()}
 async function loadFamily(){const F=fam();
   try{F.data=await famApi('','GET');if(!F.kid||!F.data.children.some(c=>c.id===F.kid))F.kid=F.data.children[0]&&F.data.children[0].id;if(F.kid)loadReport(F.kid)}
   catch(e){if(e.status===401){F.token=null;ss.set('famtoken',null)}else F.err='Sem conexão agora. Tente de novo.'}if(S.screen==='parents')render()}
-async function loadReport(id){const F=fam();F.kid=id;F.report=null;if(S.screen==='parents')render();
+async function loadReport(id){const F=fam();if(F.kid!==id||!F.report||F.report.player.id!==id){F.report=null;F.kid=id;if(S.screen==='parents')render()}
   try{const r=await famApi('/report/'+encodeURIComponent(id),'GET');if(F.kid===id){F.report=r;if(S.screen==='parents')render()}}catch(e){}}
 function famIn(d){const F=fam();F.token=d.token;F.familyId=d.familyId;ss.set('famtoken',d.token);store.set('family',d.familyId);F.mode=null;F.err='';loadFamily()}
 async function famLogin(){const F=fam(),pin=document.getElementById('fpin').value.trim();if(!/^\d{4}$/.test(pin))return setErr('ferr','O PIN tem 4 números.');setErr('ferr','Entrando...');
@@ -120,14 +120,14 @@ function famLoginView(){const F=fam(),create=F.mode==='create',child=F.mode==='c
 // lessons per day, last 30 days: one series, so no legend; each bar carries its value on hover/tap
 function dayBars(days){const max=Math.max(1,...days.map(d=>d.lessons));const tick=[0,7,14,21,29];
   return `<figure class="chart"><figcaption>Lições por dia (últimos 30 dias)</figcaption>
-    <div class="bars" role="img" aria-label="Lições por dia nos últimos 30 dias">${days.map((d,i)=>{const [y,m,dd]=d.day.split('-');const tip=`${+dd}/${+m}: ${d.lessons} lição${d.lessons===1?'':'ões'}${d.gems?`, ${d.gems} 💎`:''}${d.seconds?`, ${mins(d.seconds)}`:''}`;
+    <div class="bars" role="img" aria-label="Lições por dia nos últimos 30 dias">${days.map((d,i)=>{const [y,m,dd]=d.day.split('-');const tip=`${+dd}/${+m}: ${d.lessons} ${d.lessons===1?'lição':'lições'}${d.gems?`, ${d.gems} 💎`:''}${d.seconds?`, ${mins(d.seconds)}`:''}`;
       return `<button class="bar" type="button" title="${tip}" data-tip="${esc(tip)}"><i style="height:${d.lessons?Math.max(4,Math.round(100*d.lessons/max)):0}%"></i></button>`}).join('')}<span class="bmax">${max}</span></div>
     <div class="bx">${tick.map(i=>{const [,m,dd]=days[i].day.split('-');return `<span style="left:${(i+.5)/days.length*100}%">${+dd}/${+m}</span>`}).join('')}</div>
     <p class="btip hint" id="btip" aria-live="polite">Toque numa barra para ver o dia.</p></figure>`}
 function reportView(R){const t=R.totals,rate=R.rate;const g=GRADES.find(x=>x.id===R.player.grade)||GRADES[1];const prog=R.player.progress||{};
   const last30=R.days.reduce((a,d)=>a+d.lessons,0),secs=R.days.reduce((a,d)=>a+d.seconds,0);
   const trend=rate.now!=null&&rate.before!=null?(rate.now>rate.before?`<small class="up">▲ ${rate.now-rate.before} pontos</small>`:rate.now<rate.before?`<small class="down">▼ ${rate.before-rate.now} pontos</small>`:'<small>igual ao mês anterior</small>'):'<small>nos últimos 30 dias</small>';
-  const wl=list=>list.length?list.map(w=>`<div class="exrow"><span>${esc(keyName(w.key))}<small>${w.lessons} lição${w.lessons===1?'':'ões'} · ${w.reviews} revis${w.reviews===1?'ão':'ões'}</small></span><b>${w.rate}%</b></div>`).join(''):'<p class="hint">Ainda sem lições nos últimos 30 dias.</p>';
+  const wl=list=>list.length?list.map(w=>`<div class="exrow"><span>${esc(keyName(w.key))}<small>${w.lessons} ${w.lessons===1?'lição':'lições'} · ${w.reviews} revis${w.reviews===1?'ão':'ões'}</small></span><b>${w.rate}%</b></div>`).join(''):'<p class="hint">Ainda sem lições nos últimos 30 dias.</p>';
   return `<div class="kpis"><div class="kpi"><b>${last30}</b><span>lições em 30 dias</span><small>${t.lessons} no total</small></div>
       <div class="kpi"><b>${mins(secs)}</b><span>jogando em 30 dias</span></div>
       <div class="kpi"><b>${rate.now==null?'–':rate.now+'%'}</b><span>acertos de primeira</span>${trend}</div>
@@ -140,36 +140,75 @@ function reportView(R){const t=R.totals,rate=R.rate;const g=GRADES.find(x=>x.id=
     <div class="card"><h3>Últimas lições</h3>${R.recent.length?R.recent.map(l=>`<div class="exrow"><span>${esc(keyName(l.key))}${/:bn/.test(l.key)?'':` · nível ${l.level+1}`}<small>${new Date(l.at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}${/5$/.test(l.key)&&/:bn/.test(l.key)?` · ${l.score} erro${l.score===1?'':'s'}`:` · ${l.score} de ${l.total} de primeira`}${l.reviews?` · ${l.reviews} na revisão`:''}</small></span><b>${starStr(l.stars)}${l.gems?` +${l.gems} 💎`:''}</b></div>`).join(''):'<p class="hint">Nenhuma lição ainda.</p>'}</div>
     ${R.exchanges.length?`<div class="card"><h3>Trocas</h3>${R.exchanges.map(e=>`<div class="exrow"><span>${EXST[e.status][0]} ${fcName(e.coins)} por ${e.gems} 💎<small>${new Date(e.createdAt).toLocaleDateString('pt-BR')}${e.status==='pending'?' · esperando vocês':''}</small></span><b>${money(e.cents)}</b></div>`).join('')}</div>`:''}`}
 function renderParents(){const F=fam(),D=F.data;let body;
+  // the report arrives later and redraws the page: keep what was typed in the add form
+  if(F.addOpen)keepAdd();
   if(!F.token)body=famLoginView();
   else if(!D)body=F.err?`<p class="hint">${esc(F.err)}</p>`:'<p class="hint">Carregando...</p>';
   else{const kidName=id=>(D.children.find(c=>c.id===id)||{}).name||'';const r=D.rules;
     body=`${D.pending.length?`<div class="card pend"><h3>Pedidos de troca</h3>${D.pending.map(e=>`<div class="exrow"><span><b>${esc(kidName(e.playerId))}</b> quer trocar ${e.gems} 💎 por ${fcName(e.coins)}<small>${new Date(e.createdAt).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} · pague ${money(e.cents)}</small></span><span class="exbtns"><button class="btn" style="--c:var(--green)" data-paid="${esc(e.id)}">Paguei ✅</button><button class="btn ghost" data-reject="${esc(e.id)}">Recusar</button></span></div>`).join('')}</div>`:''}
-      <div class="chips">${D.children.map(c=>`<button class="chip" data-kid="${esc(c.id)}" aria-pressed="${F.kid===c.id}">${esc(c.name)}</button>`).join('')}</div>
-      ${!D.children.length?'<p class="hint">Nenhum filho na família. Adicione abaixo.</p>':F.report&&F.report.player.id===F.kid?reportView(F.report):'<p class="hint">Carregando o relatório...</p>'}
+      <h3>Filhos</h3><div class="kids">${D.children.map(c=>kidCard(c,D)).join('')}<button class="kid add" data-act="kidadd" aria-expanded="${!!F.addOpen}"><span class="plus">+</span><b>Adicionar filho</b></button></div>
+      ${F.addOpen?addKidView():''}
+      ${!D.children.length?'':F.report&&F.report.player.id===F.kid?`<h3 class="rhead">Relatório de ${esc(kidName(F.kid))}</h3>${reportView(F.report)}${kidSettingsView(D.children.find(c=>c.id===F.kid),r)}`:'<p class="hint">Carregando o relatório...</p>'}
       <details class="card"${F.rulesMsg?' open':''}><summary><h3>Regras da recompensa</h3></summary><form id="rulesform" class="rules">
         <label>Diamantes para 1 Family Coin<input id="rg" type="number" min="1" max="10000" value="${r.gemsPerCoin}"></label>
         <label>Valor de 1 Family Coin (R$)<input id="rc" type="number" min="0.01" step="0.01" value="${(r.coinCents/100).toFixed(2)}"></label>
-        <label>Limite de diamantes por dia (cada filho)<input id="rl" type="number" min="0" max="1000" value="${r.dailyGemLimit}"></label>
+        <label>Limite de diamantes por dia (padrão de cada filho)<input id="rl" type="number" min="0" max="1000" value="${r.dailyGemLimit}"></label>
         <label>Novo PIN (deixe vazio para manter)<input id="rp" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4"></label>
         <p class="hint">Cada lição terminada dá 1 diamante por estrela (até 3), dentro do limite do dia.</p>
-        <p class="err ok" id="rerr" aria-live="polite">${esc(F.rulesMsg||'')}</p><div class="btnrow"><button class="btn" style="--c:var(--purple)" type="submit">Salvar regras</button></div></form></details>
-      <details class="card"><summary><h3>Adicionar filho</h3></summary><form id="kidform" class="rules"><label>Nome no jogo<input id="kname" maxlength="20" autocomplete="off"></label><div class="steplabel">Data de nascimento</div>${dobPicker('kdob','')}
-        <p class="err" id="kerr" aria-live="polite"></p><div class="btnrow"><button class="btn" type="submit">Adicionar</button></div></form></details>`}
+        <p class="err ok" id="rerr" aria-live="polite">${esc(F.rulesMsg||'')}</p><div class="btnrow"><button class="btn" style="--c:var(--purple)" type="submit">Salvar regras</button></div></form></details>`}
   $app.innerHTML=`<div class="screen parents"><div class="topbar"><button class="iconbtn" data-act="who" aria-label="Voltar">←</button><h2 class="rtitle">👨‍👩‍👧 Área dos pais</h2>${F.token?'<button class="btn ghost" data-act="famout">Sair</button>':''}</div>${body}</div>`;
   const ff=document.getElementById('famform');if(ff)ff.addEventListener('submit',e=>{e.preventDefault();F.mode==='create'?famCreate():famLogin()});
   const rf=document.getElementById('rulesform');if(rf)rf.addEventListener('submit',e=>{e.preventDefault();saveRules()});
-  const kf=document.getElementById('kidform');if(kf)kf.addEventListener('submit',e=>{e.preventDefault();addKid()})}
+  const kf=document.getElementById('kidform');if(kf)kf.addEventListener('submit',e=>{e.preventDefault();addKid()});
+  const ks=document.getElementById('kidset');if(ks)ks.addEventListener('submit',e=>{e.preventDefault();saveKid()})}
 async function saveRules(){const v=id=>document.getElementById(id).value.trim();const body={gemsPerCoin:Math.round(+v('rg')),coinCents:Math.round(+v('rc').replace(',','.')*100),dailyGemLimit:Math.round(+v('rl'))};
   if(v('rp')){if(!/^\d{4}$/.test(v('rp')))return setErr('rerr','O PIN tem 4 números.');body.newPin=v('rp')}
   if(!(body.gemsPerCoin>=1&&body.coinCents>=1&&body.dailyGemLimit>=0))return setErr('rerr','Confira os números.');
   try{await famApi('','PUT',body);fam().rulesMsg='Regras salvas!';loadFamily()}catch(e){setErr('rerr',e.status?e.message:'Sem conexão agora.')}}
-async function addKid(){const n=document.getElementById('kname').value.trim(),dob=dobValue('kdob');if(!n)return setErr('kerr','Digite o nome.');if(dobErr(dob))return setErr('kerr',dobErr(dob));
-  try{await famApi('/children','POST',{name:n,birthDate:dob});loadFamily()}catch(e){setErr('kerr',e.status?e.message:'Sem conexão agora.')}}
+/* ---- several children: overview, add (link or create), per-child settings ---- */
+const ageOf=d=>{if(!d)return null;const b=new Date(d+'T00:00:00'),n=new Date();let a=n.getFullYear()-b.getFullYear();if(n.getMonth()<b.getMonth()||n.getMonth()===b.getMonth()&&n.getDate()<b.getDate())a--;return a};
+const agoTxt=t=>{if(!t)return 'ainda não jogou nesta semana';const d=Math.floor((Date.now()-new Date(t))/86400000);return d<=0?'jogou hoje':d===1?'jogou ontem':`jogou há ${d} dias`};
+function kidCard(c,D){const m=MATES[c.mate]||MATES.estrela,g=GRADES.find(x=>x.id===c.grade),age=ageOf(c.birthDate),pend=D.pending.filter(e=>e.playerId===c.id).length;
+  return `<button class="kid${fam().kid===c.id?' on':''}" data-kid="${esc(c.id)}" style="--mc:${m.color}">${pend?`<span class="kbadge" title="Pedidos de troca">${pend}</span>`:''}<span class="pic">${dressed(m,c.wear)}</span>
+    <b>${esc(c.name)}</b><small>${age!=null?`${age} ano${age===1?'':'s'} · `:''}${g?g.name:''}</small>
+    <span class="kstats"><span>★ ${c.stars}</span><span>💎 ${c.gems}</span></span>
+    <small>${c.lessonsWeek} ${c.lessonsWeek===1?'lição':'lições'} na semana${c.rateWeek!=null?` · ${c.rateWeek}% de primeira`:''}</small>
+    <small>Hoje: ${c.gemsToday} de ${c.limit} 💎 · ${agoTxt(c.lastPlayed)}</small></button>`}
+function addKidView(){const F=fam(),A=F.add||(F.add={mode:'link',gender:'f',grade:'1',mate:'estrela'});
+  return `<form class="card rules addkid" id="kidform"><h3>Adicionar filho</h3>
+    <div class="chips"><button type="button" class="chip" data-addmode="link" aria-pressed="${A.mode==='link'}">Já joga no Caderninho</button><button type="button" class="chip" data-addmode="create" aria-pressed="${A.mode==='create'}">Criar o perfil agora</button></div>
+    <p class="hint">${A.mode==='link'?'Digite o nome e a data de nascimento que ele(a) usa para entrar no jogo.':'Os pais criam o perfil. Depois a criança entra tocando no nome e escolhendo a data de nascimento.'}</p>
+    <label>Nome<input id="kname" maxlength="20" autocomplete="off" value="${esc(A.name||'')}"></label><div class="steplabel">Data de nascimento</div>${dobPicker('kdob',A.dob||'')}
+    ${A.mode==='create'?`<div class="steplabel">É...</div><div class="chips"><button type="button" class="chip" data-addg="f" aria-pressed="${A.gender==='f'}">Menina</button><button type="button" class="chip" data-addg="m" aria-pressed="${A.gender==='m'}">Menino</button></div>
+      <label>Ano na escola<select id="kgrade">${GRADES.map(g=>`<option value="${g.id}"${A.grade===g.id?' selected':''}>${g.name}</option>`).join('')}</select></label>
+      <div class="steplabel">Personagem</div><div class="kmates">${MATE_ORDER.map(k=>`<button type="button" class="kmate" data-addm="${k}" aria-pressed="${A.mate===k}" title="${esc(MATES[k].name)}">${MATES[k].draw()}</button>`).join('')}</div>`:''}
+    <p class="err" id="kerr" aria-live="polite"></p><div class="btnrow"><button class="btn" style="--c:var(--purple)" type="submit">${A.mode==='link'?'Colocar na família':'Criar e colocar na família'}</button><button class="btn ghost" type="button" data-act="kidadd">Cancelar</button></div></form>`}
+// keep what was typed when a chip re-renders the form
+function keepAdd(){const F=fam(),A=F.add;if(!A)return;const n=document.getElementById('kname');if(n)A.name=n.value;const d=dobValue('kdob');if(d&&d!=='bad')A.dob=d;const g=document.getElementById('kgrade');if(g)A.grade=g.value}
+async function addKid(){const F=fam(),A=F.add;keepAdd();const n=(A.name||'').trim(),dob=dobValue('kdob');if(!NAME_OK(n))return setErr('kerr',n?'Use só letras no nome.':'Digite o nome.');if(dobErr(dob))return setErr('kerr',dobErr(dob));
+  const body={name:n,birthDate:dob};if(A.mode==='create')body.profile={gender:A.gender,grade:A.grade,mate:A.mate};setErr('kerr','Salvando...');
+  try{const r=await famApi('/children','POST',body);F.addOpen=false;F.add=null;F.kid=r.id;loadFamily()}catch(e){setErr('kerr',e.status?e.message:'Sem conexão agora.')}}
+function kidSettingsView(c,r){if(!c)return '';const F=fam();
+  return `<details class="card"${F.kidMsg||F.kidRemove===c.id?' open':''}><summary><h3>Ajustes de ${esc(c.name)}</h3></summary><form id="kidset" class="rules">
+    <label>Limite de diamantes por dia só para ${esc(c.name)}<input id="klimit" type="number" min="0" max="1000" placeholder="O da família: ${r.dailyGemLimit}" value="${c.gemLimit==null?'':c.gemLimit}"></label>
+    <p class="hint">Deixe vazio para usar o limite da família (${r.dailyGemLimit} por dia). Útil quando os irmãos têm idades diferentes.</p>
+    <p class="err ok" id="kserr" aria-live="polite">${esc(F.kidMsg||'')}</p>
+    <div class="btnrow"><button class="btn" style="--c:var(--purple)" type="submit">Salvar</button>${F.kidRemove===c.id?`<button class="btn" style="--c:var(--red)" type="button" data-kidrm="${esc(c.id)}">Confirmar: tirar da família</button>`:`<button class="btn ghost" type="button" data-kidrmask="${esc(c.id)}">Tirar da família</button>`}</div>
+    ${F.kidRemove===c.id?`<p class="hint">${esc(c.name)} continua com o progresso e os diamantes, mas sai do relatório e não pode mais trocar diamantes até voltar para a família.</p>`:''}</form></details>`}
+async function saveKid(){const F=fam(),v=document.getElementById('klimit').value.trim();const lim=v===''?null:Math.round(+v);if(lim!=null&&!(lim>=0&&lim<=1000))return setErr('kserr','Use um número de 0 a 1000.');
+  try{await famApi('/children/'+encodeURIComponent(F.kid),'PATCH',{gemLimit:lim});F.kidMsg='Ajustes salvos!';loadFamily()}catch(e){setErr('kserr',e.status?e.message:'Sem conexão agora.')}}
+async function removeKid(id){const F=fam();try{await famApi('/children/'+encodeURIComponent(id),'DELETE');F.kidRemove=null;F.kid=null;F.report=null;loadFamily()}catch(e){setErr('kserr',e.status?e.message:'Sem conexão agora.')}}
 async function decide(id,action,btn){btn.disabled=true;try{await famApi('/exchanges/'+encodeURIComponent(id),'POST',{action});if(action==='paid')sndWin();loadFamily()}catch(e){btn.disabled=false;loadFamily()}}
 // clicks for these screens; true when handled
 function rewardsClick(b){const a=b.dataset.act;if(shopClick(b))return true;
   if(b.dataset.exch){askExchange(+b.dataset.exch,b);return true}
-  if(b.dataset.kid){loadReport(b.dataset.kid);return true}
+  if(b.dataset.kid){const F=fam();F.kidMsg='';F.kidRemove=null;loadReport(b.dataset.kid);return true}
+  if(a==='kidadd'){const F=fam();keepAdd();F.addOpen=!F.addOpen;render();return true}
+  if(b.dataset.addmode){keepAdd();fam().add.mode=b.dataset.addmode;render();return true}
+  if(b.dataset.addg){keepAdd();fam().add.gender=b.dataset.addg;render();return true}
+  if(b.dataset.addm){keepAdd();fam().add.mate=b.dataset.addm;render();return true}
+  if(b.dataset.kidrmask){fam().kidRemove=b.dataset.kidrmask;render();return true}
+  if(b.dataset.kidrm){removeKid(b.dataset.kidrm);return true}
   if(b.dataset.paid){decide(b.dataset.paid,'paid',b);return true}
   if(b.dataset.reject){decide(b.dataset.reject,'rejected',b);return true}
   if(b.dataset.fmode!=null){const F=fam();F.mode=b.dataset.fmode||null;F.err='';render();return true}

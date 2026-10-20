@@ -19,6 +19,7 @@ model GamePlayer {
   code      String      @unique // ex: "GAT-427": chave de sincronização guardada no aparelho
   stars     Int         @default(0) // soma das estrelas de todos os níveis, calculada no servidor
   gems      Int         @default(0) // diamantes disponíveis, só o servidor altera
+  gemLimit  Int? // limite diário de diamantes só deste filho (vazio: o da família)
   progress  Json        @default("{}") // { "ano:mundo": [estrelas nível 1, 2, 3] }
   items     Json        @default("[]") // itens comprados na loja com diamantes
   wear      Json        @default("{}") // itens em uso: { head, face, extra, skin }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { DEFAULT_RULES, normalizeCode, today } from "@/lib/game";
+import { dailyLimit, normalizeCode, today } from "@/lib/game";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +20,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   return NextResponse.json({
     gems: player.gems,
     today: sum._sum.gems ?? 0,
-    limit: f?.dailyGemLimit ?? DEFAULT_RULES.dailyGemLimit,
+    limit: dailyLimit(player),
     family: f ? { gemsPerCoin: f.gemsPerCoin, coinCents: f.coinCents } : null,
     coins: exchanges.filter((e) => e.status === "paid").reduce((a, e) => a + e.coins, 0),
     exchanges: exchanges.map((e) => ({ id: e.id, gems: e.gems, coins: e.coins, cents: e.cents, status: e.status, createdAt: e.createdAt })),

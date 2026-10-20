@@ -14,6 +14,8 @@ const name = z
   .max(20, "Use até 20 letras")
   .regex(/^[\p{L}\p{M} '-]+$/u, "Use só letras");
 
+export const playerName = name;
+
 const profileFields = {
   name,
   gender: z.enum(["f", "m"]),
@@ -72,6 +74,10 @@ export function today(now = new Date()): string {
 export function lessonGems(stars: number, earnedToday: number, dailyLimit: number): number {
   return Math.max(0, Math.min(stars, dailyLimit - earnedToday));
 }
+
+/** Limite diário de diamantes de um jogador: o dele, senão o da família, senão o padrão. */
+export const dailyLimit = (p: { gemLimit: number | null; family: { dailyGemLimit: number } | null }) =>
+  p.gemLimit ?? p.family?.dailyGemLimit ?? DEFAULT_RULES.dailyGemLimit;
 
 export const DEFAULT_RULES = { gemsPerCoin: 100, coinCents: 5000, dailyGemLimit: 30 };
 

@@ -1,12 +1,23 @@
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
-import { birthDate } from "@/lib/game";
+import { GRADES, birthDate, playerName } from "@/lib/game";
 
 // Área dos pais do Caderninho Mágico: a família entra com um PIN de 4 dígitos.
 
 export const pin = z.string().regex(/^\d{4}$/, "O PIN tem 4 números");
 
 export const childRef = z.object({ name: z.string().trim().min(1).max(20), birthDate });
+
+// Adicionar filho: só nome + data liga um jogador que já existe; com ano, menina/menino e
+// personagem, os pais criam o perfil quando ele ainda não joga.
+export const addChildSchema = z.object({
+  name: playerName,
+  birthDate,
+  profile: z.object({ gender: z.enum(["f", "m"]), grade: z.enum(GRADES), mate: z.string().regex(/^[a-z]{2,20}$/) }).optional(),
+});
+
+// Ajustes de um filho: limite diário próprio (null volta para o da família)
+export const childSettingsSchema = z.object({ gemLimit: z.number().int().min(0).max(1000).nullable() });
 
 export const createFamilySchema = z.object({ pin, child: childRef });
 
