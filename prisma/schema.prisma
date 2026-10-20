@@ -1,0 +1,87 @@
+// Banco do Caderninho Mágico (Postgres, ex: Neon pelo Vercel Marketplace). Ver README.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model GamePlayer {
+  id        String      @id @default(cuid())
+  name      String
+  birthDate DateTime?   @db.Date // login da criança: nome + data de nascimento
+  gender    String      @default("f")
+  mate      String      @default("estrela")
+  grade     String      @default("1")
+  code      String      @unique // ex: "GAT-427": chave de sincronização guardada no aparelho
+  stars     Int         @default(0) // soma das estrelas de todos os níveis, calculada no servidor
+  gems      Int         @default(0) // diamantes disponíveis, só o servidor altera
+  progress  Json        @default("{}") // { "ano:mundo": [estrelas nível 1, 2, 3] }
+  items     Json        @default("[]") // itens comprados na loja com diamantes
+  wear      Json        @default("{}") // itens em uso: { head, face, extra, skin }
+  familyId  String?
+  family    GameFamily? @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  lessons   GameLesson[]
+  exchanges GameExchange[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([stars])
+  @@index([familyId])
+  @@map("game_players")
+}
+
+// Família: os pais entram com um PIN e definem as regras da recompensa
+model GameFamily {
+  id            String       @id @default(cuid())
+  pinHash       String // scrypt "salt:hash"
+  gemsPerCoin   Int          @default(100) // diamantes por 1 Family Coin
+  coinCents     Int          @default(5000) // quanto vale 1 Family Coin, em centavos (R$ 50)
+  dailyGemLimit Int          @default(30) // diamantes que cada filho pode ganhar por dia
+  failedPins    Int          @default(0)
+  lockedUntil   DateTime?
+  players       GamePlayer[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@map("game_families")
+}
+
+// Cada lição terminada: base do relatório dos pais e do limite diário de diamantes
+model GameLesson {
+  id        String     @id @default(cuid())
+  playerId  String
+  player    GamePlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  key       String // "ano:mundo" ou bônus "1:bn100N"
+  level     Int // 0 a 2 (nível da lição ou atividade do bônus)
+  stars     Int
+  score     Int // acertos de primeira (de 8), ou erros no "Em ordem!"
+  total     Int // perguntas da lição
+  reviews   Int        @default(0) // perguntas que voltaram na revisão
+  seconds   Int        @default(0)
+  gems      Int        @default(0) // diamantes ganhos nesta lição
+  day       String // dia em São Paulo, "2026-10-20"
+  createdAt DateTime   @default(now())
+
+  @@index([playerId, day])
+  @@map("game_lessons")
+}
+
+// Troca de diamantes por Family Coin: os diamantes ficam reservados até os pais decidirem
+model GameExchange {
+  id        String     @id @default(cuid())
+  playerId  String
+  player    GamePlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  gems      Int
+  coins     Int
+  cents     Int // valor em dinheiro no momento do pedido
+  status    String     @default("pending") // pending | paid | rejected
+  decidedAt DateTime?
+  createdAt DateTime   @default(now())
+
+  @@index([playerId, status])
+  @@map("game_exchanges")
+}

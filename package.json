@@ -1,0 +1,31 @@
+{
+  "name": "caderninho-magico",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "prisma migrate deploy && next build",
+    "start": "next start",
+    "lint": "eslint",
+    "postinstall": "prisma generate",
+    "jogo": "python3 jogo/build.py && python3 jogo/standalone.py jogo/caderninho-magico.html public/index.html /api",
+    "db:migrate": "prisma migrate dev"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "next": "16.3.2",
+    "prisma": "^6.19.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "esbuild": "0.24.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.2",
+    "typescript": "^5"
+  }
+}
