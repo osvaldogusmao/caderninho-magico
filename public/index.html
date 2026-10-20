@@ -68,7 +68,7 @@ h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
 @keyframes jump{30%{transform:translateY(-26px) scale(1.06)}60%{transform:translateY(0) scale(.97,1.03)}}
 
 /* ---------- Home ---------- */
-.home{display:grid;gap:20px;justify-items:center;text-align:center;padding-top:4px}
+.home{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;justify-items:center;text-align:center;padding-top:4px}
 .logo{font-size:3.8rem;font-size:clamp(2.4rem,7.5vw,3.8rem);font-weight:700;line-height:1;letter-spacing:.5px}
 .logo span{display:inline-block;animation:letter 2.8s ease-in-out infinite}
 .logo .l1{color:var(--purple)} .logo .l2{color:var(--pink)}
