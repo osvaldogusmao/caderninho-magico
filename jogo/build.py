@@ -39,7 +39,7 @@ def legacy_css(css):
         return out + '%s:%s' % (prop, val)
     css = re.sub(r'(?<=[{;\s])([a-z-]+):((?:[^;{}()]|\((?:[^()]|\([^()]*\))*\))+)(?=[;}])', decl, css)
     gaps = {'.chips,.chiprow,.headtools,.bag,.seq,.recrow': '4px', '.rrow': '6px', '.maphead,.goal': '7px', '.whead,.topbar,.groups,.pairs,.row,.listnums': '5px',
-            '.dots,.rods,.cubes,.pat': '3px', '.visual': '7px', '.pv': '11px', '.btnrow,.mghead': '6px', '.choice': '4px', '.eq': '.15em', '.tdots,.trow': '2px', '.ss-hands': '30px', '.dob,.exbtns': '4px', '.bars': '1px'}
+            '.dots,.rods,.cubes,.pat': '3px', '.visual': '7px', '.pv': '11px', '.btnrow,.mghead': '6px', '.choice': '4px', '.eq': '.15em', '.tdots,.trow': '2px', '.ss-hands': '30px', '.dob,.exbtns,.kstats': '4px', '.bars': '1px'}
     extra = '\n/* flexbox gap is missing on iOS 12: margins instead (html.nogap set by a feature test) */\n'
     for sel, g in gaps.items():
         extra += ','.join('.nogap %s>*' % s for s in sel.split(',')) + '{margin:%s}\n' % g

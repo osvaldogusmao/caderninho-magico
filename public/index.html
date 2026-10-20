@@ -544,6 +544,24 @@ button.pill{border:0;cursor:pointer;box-shadow:0 3px 0 #9CC9E3}
 @keyframes twinkle{50%{opacity:.25}}
 .char .acc-back{opacity:.9}
 
+/* parents' area: the children side by side */
+.kids{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.kid{position:relative;border:0;background:var(--card);border-radius:22px;padding:12px;box-shadow:0 5px 0 var(--line);display:grid;justify-items:center;text-align:center;gap:3px;cursor:pointer;color:var(--ink);font:inherit}
+.kid.on{box-shadow:0 5px 0 var(--mc,var(--purple)),inset 0 0 0 3px var(--mc,var(--purple))}
+.kid .pic{width:84px}
+.kid b{font-family:var(--display);font-size:1.2rem}
+.kid small{color:var(--muted);font-weight:700}
+.kstats{display:flex;gap:10px;font-family:var(--display);font-weight:600}
+.kbadge{position:absolute;top:8px;right:8px;min-width:1.6em;height:1.6em;border-radius:999px;background:var(--red);color:#fff;font-weight:700;display:grid;place-items:center;font-size:.85rem}
+.kid.add{border:3px dashed var(--line);box-shadow:none;background:transparent;align-content:center;min-height:180px}
+.kid.add .plus{font-size:2.4rem;color:var(--purple);line-height:1}
+.rhead{margin:8px 0 0}
+.addkid select{font-family:var(--display);font-size:1.1rem;padding:.45em .7em;border-radius:14px;border:3px solid var(--line);background:var(--card);color:var(--ink)}
+.kmates{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px}
+.kmate{border:3px solid transparent;border-radius:16px;background:#F3F6FC;padding:4px;cursor:pointer}
+.kmate[aria-pressed="true"]{border-color:var(--purple);background:#EFE8FF}
+.err.ok{color:#17804D}
+
 /* flexbox gap is missing on iOS 12: margins instead (html.nogap set by a feature test) */
 .nogap .chips>*,.nogap .chiprow>*,.nogap .headtools>*,.nogap .bag>*,.nogap .seq>*,.nogap .recrow>*{margin:4px}
 .nogap .rrow>*{margin:6px}
@@ -557,7 +575,7 @@ button.pill{border:0;cursor:pointer;box-shadow:0 3px 0 #9CC9E3}
 .nogap .eq>*{margin:.15em}
 .nogap .tdots>*,.nogap .trow>*{margin:2px}
 .nogap .ss-hands>*{margin:30px}
-.nogap .dob>*,.nogap .exbtns>*{margin:4px}
+.nogap .dob>*,.nogap .exbtns>*,.nogap .kstats>*{margin:4px}
 .nogap .bars>*{margin:1px}
 @supports not (aspect-ratio:1/1){.mhole{height:110px}.mcard{height:140px}}
 </style>
@@ -3134,6 +3152,9 @@ button.pill{border:0;cursor:pointer;box-shadow:0 3px 0 #9CC9E3}
   function famLogout() {
     const F = fam();
     F.rulesMsg = "";
+    F.kidMsg = "";
+    F.addOpen = false;
+    F.add = null;
     F.token = null;
     F.data = null;
     F.report = null;
@@ -3156,9 +3177,11 @@ button.pill{border:0;cursor:pointer;box-shadow:0 3px 0 #9CC9E3}
   }
   async function loadReport(id) {
     const F = fam();
-    F.kid = id;
-    F.report = null;
-    if (S.screen === "parents") render();
+    if (F.kid !== id || !F.report || F.report.player.id !== id) {
+      F.report = null;
+      F.kid = id;
+      if (S.screen === "parents") render();
+    }
     try {
       const r = await famApi("/report/" + encodeURIComponent(id), "GET");
       if (F.kid === id) {
@@ -3229,7 +3252,7 @@ button.pill{border:0;cursor:pointer;box-shadow:0 3px 0 #9CC9E3}
     const tick = [0, 7, 14, 21, 29];
     return '<figure class="chart"><figcaption>Lições por dia (últimos 30 dias)</figcaption>\n    <div class="bars" role="img" aria-label="Lições por dia nos últimos 30 dias">'.concat(days.map((d, i) => {
       const [y, m, dd] = d.day.split("-");
-      const tip = "".concat(+dd, "/").concat(+m, ": ").concat(d.lessons, " lição").concat(d.lessons === 1 ? "" : "ões").concat(d.gems ? ", ".concat(d.gems, " 💎") : "").concat(d.seconds ? ", ".concat(mins(d.seconds)) : "");
+      const tip = "".concat(+dd, "/").concat(+m, ": ").concat(d.lessons, " ").concat(d.lessons === 1 ? "lição" : "lições").concat(d.gems ? ", ".concat(d.gems, " 💎") : "").concat(d.seconds ? ", ".concat(mins(d.seconds)) : "");
       return '<button class="bar" type="button" title="'.concat(tip, '" data-tip="').concat(esc(tip), '"><i style="height:').concat(d.lessons ? Math.max(4, Math.round(100 * d.lessons / max)) : 0, '%"></i></button>');
     }).join(""), '<span class="bmax">').concat(max, '</span></div>\n    <div class="bx">').concat(tick.map((i) => {
       const [, m, dd] = days[i].day.split("-");
@@ -3242,7 +3265,7 @@ button.pill{border:0;cursor:pointer;box-shadow:0 3px 0 #9CC9E3}
     const prog = R2.player.progress || {};
     const last30 = R2.days.reduce((a, d) => a + d.lessons, 0), secs = R2.days.reduce((a, d) => a + d.seconds, 0);
     const trend = rate.now != null && rate.before != null ? rate.now > rate.before ? '<small class="up">▲ '.concat(rate.now - rate.before, " pontos</small>") : rate.now < rate.before ? '<small class="down">▼ '.concat(rate.before - rate.now, " pontos</small>") : "<small>igual ao mês anterior</small>" : "<small>nos últimos 30 dias</small>";
-    const wl = (list) => list.length ? list.map((w) => '<div class="exrow"><span>'.concat(esc(keyName(w.key)), "<small>").concat(w.lessons, " lição").concat(w.lessons === 1 ? "" : "ões", " · ").concat(w.reviews, " revis").concat(w.reviews === 1 ? "ão" : "ões", "</small></span><b>").concat(w.rate, "%</b></div>")).join("") : '<p class="hint">Ainda sem lições nos últimos 30 dias.</p>';
+    const wl = (list) => list.length ? list.map((w) => '<div class="exrow"><span>'.concat(esc(keyName(w.key)), "<small>").concat(w.lessons, " ").concat(w.lessons === 1 ? "lição" : "lições", " · ").concat(w.reviews, " revis").concat(w.reviews === 1 ? "ão" : "ões", "</small></span><b>").concat(w.rate, "%</b></div>")).join("") : '<p class="hint">Ainda sem lições nos últimos 30 dias.</p>';
     return '<div class="kpis"><div class="kpi"><b>'.concat(last30, "</b><span>lições em 30 dias</span><small>").concat(t.lessons, ' no total</small></div>\n      <div class="kpi"><b>').concat(mins(secs), '</b><span>jogando em 30 dias</span></div>\n      <div class="kpi"><b>').concat(rate.now == null ? "–" : rate.now + "%", "</b><span>acertos de primeira</span>").concat(trend, '</div>\n      <div class="kpi"><b>').concat(R2.player.gems, " 💎</b><span>diamantes guardados</span><small>").concat(fcName(t.coinsPaid), " pagas · ").concat(money(t.centsPaid), "</small><small>").concat((R2.player.items || []).length, " ite").concat((R2.player.items || []).length === 1 ? "m" : "ns", " da loja</small></div></div>\n    ").concat(dayBars(R2.days), '\n    <div class="card"><h3>Progresso no ').concat(esc(g.name), '</h3><div class="wprog">').concat(g.worlds.map((w) => {
       const s = (prog["".concat(g.id, ":").concat(w.id)] || []).reduce((a, b) => a + (b || 0), 0);
       return '<div class="wp"><span>'.concat(w.icon, " ").concat(esc(w.name), '</span><div class="wbar"><i style="width:').concat(Math.round(100 * s / 9), '%"></i></div><small>').concat(s, "/9 ★</small></div>");
@@ -3251,12 +3274,13 @@ button.pill{border:0;cursor:pointer;box-shadow:0 3px 0 #9CC9E3}
   function renderParents() {
     const F = fam(), D = F.data;
     let body;
+    if (F.addOpen) keepAdd();
     if (!F.token) body = famLoginView();
     else if (!D) body = F.err ? '<p class="hint">'.concat(esc(F.err), "</p>") : '<p class="hint">Carregando...</p>';
     else {
       const kidName = (id) => (D.children.find((c) => c.id === id) || {}).name || "";
       const r = D.rules;
-      body = "".concat(D.pending.length ? '<div class="card pend"><h3>Pedidos de troca</h3>'.concat(D.pending.map((e) => '<div class="exrow"><span><b>'.concat(esc(kidName(e.playerId)), "</b> quer trocar ").concat(e.gems, " 💎 por ").concat(fcName(e.coins), "<small>").concat(new Date(e.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }), " · pague ").concat(money(e.cents), '</small></span><span class="exbtns"><button class="btn" style="--c:var(--green)" data-paid="').concat(esc(e.id), '">Paguei ✅</button><button class="btn ghost" data-reject="').concat(esc(e.id), '">Recusar</button></span></div>')).join(""), "</div>") : "", '\n      <div class="chips">').concat(D.children.map((c) => '<button class="chip" data-kid="'.concat(esc(c.id), '" aria-pressed="').concat(F.kid === c.id, '">').concat(esc(c.name), "</button>")).join(""), "</div>\n      ").concat(!D.children.length ? '<p class="hint">Nenhum filho na família. Adicione abaixo.</p>' : F.report && F.report.player.id === F.kid ? reportView(F.report) : '<p class="hint">Carregando o relatório...</p>', '\n      <details class="card"').concat(F.rulesMsg ? " open" : "", '><summary><h3>Regras da recompensa</h3></summary><form id="rulesform" class="rules">\n        <label>Diamantes para 1 Family Coin<input id="rg" type="number" min="1" max="10000" value="').concat(r.gemsPerCoin, '"></label>\n        <label>Valor de 1 Family Coin (R$)<input id="rc" type="number" min="0.01" step="0.01" value="').concat((r.coinCents / 100).toFixed(2), '"></label>\n        <label>Limite de diamantes por dia (cada filho)<input id="rl" type="number" min="0" max="1000" value="').concat(r.dailyGemLimit, '"></label>\n        <label>Novo PIN (deixe vazio para manter)<input id="rp" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4"></label>\n        <p class="hint">Cada lição terminada dá 1 diamante por estrela (até 3), dentro do limite do dia.</p>\n        <p class="err ok" id="rerr" aria-live="polite">').concat(esc(F.rulesMsg || ""), '</p><div class="btnrow"><button class="btn" style="--c:var(--purple)" type="submit">Salvar regras</button></div></form></details>\n      <details class="card"><summary><h3>Adicionar filho</h3></summary><form id="kidform" class="rules"><label>Nome no jogo<input id="kname" maxlength="20" autocomplete="off"></label><div class="steplabel">Data de nascimento</div>').concat(dobPicker("kdob", ""), '\n        <p class="err" id="kerr" aria-live="polite"></p><div class="btnrow"><button class="btn" type="submit">Adicionar</button></div></form></details>');
+      body = "".concat(D.pending.length ? '<div class="card pend"><h3>Pedidos de troca</h3>'.concat(D.pending.map((e) => '<div class="exrow"><span><b>'.concat(esc(kidName(e.playerId)), "</b> quer trocar ").concat(e.gems, " 💎 por ").concat(fcName(e.coins), "<small>").concat(new Date(e.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }), " · pague ").concat(money(e.cents), '</small></span><span class="exbtns"><button class="btn" style="--c:var(--green)" data-paid="').concat(esc(e.id), '">Paguei ✅</button><button class="btn ghost" data-reject="').concat(esc(e.id), '">Recusar</button></span></div>')).join(""), "</div>") : "", '\n      <h3>Filhos</h3><div class="kids">').concat(D.children.map((c) => kidCard(c, D)).join(""), '<button class="kid add" data-act="kidadd" aria-expanded="').concat(!!F.addOpen, '"><span class="plus">+</span><b>Adicionar filho</b></button></div>\n      ').concat(F.addOpen ? addKidView() : "", "\n      ").concat(!D.children.length ? "" : F.report && F.report.player.id === F.kid ? '<h3 class="rhead">Relatório de '.concat(esc(kidName(F.kid)), "</h3>").concat(reportView(F.report)).concat(kidSettingsView(D.children.find((c) => c.id === F.kid), r)) : '<p class="hint">Carregando o relatório...</p>', '\n      <details class="card"').concat(F.rulesMsg ? " open" : "", '><summary><h3>Regras da recompensa</h3></summary><form id="rulesform" class="rules">\n        <label>Diamantes para 1 Family Coin<input id="rg" type="number" min="1" max="10000" value="').concat(r.gemsPerCoin, '"></label>\n        <label>Valor de 1 Family Coin (R$)<input id="rc" type="number" min="0.01" step="0.01" value="').concat((r.coinCents / 100).toFixed(2), '"></label>\n        <label>Limite de diamantes por dia (padrão de cada filho)<input id="rl" type="number" min="0" max="1000" value="').concat(r.dailyGemLimit, '"></label>\n        <label>Novo PIN (deixe vazio para manter)<input id="rp" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4"></label>\n        <p class="hint">Cada lição terminada dá 1 diamante por estrela (até 3), dentro do limite do dia.</p>\n        <p class="err ok" id="rerr" aria-live="polite">').concat(esc(F.rulesMsg || ""), '</p><div class="btnrow"><button class="btn" style="--c:var(--purple)" type="submit">Salvar regras</button></div></form></details>');
     }
     $app.innerHTML = '<div class="screen parents"><div class="topbar"><button class="iconbtn" data-act="who" aria-label="Voltar">←</button><h2 class="rtitle">👨‍👩‍👧 Área dos pais</h2>'.concat(F.token ? '<button class="btn ghost" data-act="famout">Sair</button>' : "", "</div>").concat(body, "</div>");
     const ff = document.getElementById("famform");
@@ -3273,6 +3297,11 @@ button.pill{border:0;cursor:pointer;box-shadow:0 3px 0 #9CC9E3}
     if (kf) kf.addEventListener("submit", (e) => {
       e.preventDefault();
       addKid();
+    });
+    const ks = document.getElementById("kidset");
+    if (ks) ks.addEventListener("submit", (e) => {
+      e.preventDefault();
+      saveKid();
     });
   }
   async function saveRules() {
@@ -3291,15 +3320,82 @@ button.pill{border:0;cursor:pointer;box-shadow:0 3px 0 #9CC9E3}
       setErr("rerr", e.status ? e.message : "Sem conexão agora.");
     }
   }
+  const ageOf = (d) => {
+    if (!d) return null;
+    const b = /* @__PURE__ */ new Date(d + "T00:00:00"), n = /* @__PURE__ */ new Date();
+    let a = n.getFullYear() - b.getFullYear();
+    if (n.getMonth() < b.getMonth() || n.getMonth() === b.getMonth() && n.getDate() < b.getDate()) a--;
+    return a;
+  };
+  const agoTxt = (t) => {
+    if (!t) return "ainda não jogou nesta semana";
+    const d = Math.floor((Date.now() - new Date(t)) / 864e5);
+    return d <= 0 ? "jogou hoje" : d === 1 ? "jogou ontem" : "jogou há ".concat(d, " dias");
+  };
+  function kidCard(c, D) {
+    const m = MATES[c.mate] || MATES.estrela, g = GRADES.find((x) => x.id === c.grade), age = ageOf(c.birthDate), pend = D.pending.filter((e) => e.playerId === c.id).length;
+    return '<button class="kid'.concat(fam().kid === c.id ? " on" : "", '" data-kid="').concat(esc(c.id), '" style="--mc:').concat(m.color, '">').concat(pend ? '<span class="kbadge" title="Pedidos de troca">'.concat(pend, "</span>") : "", '<span class="pic">').concat(dressed(m, c.wear), "</span>\n    <b>").concat(esc(c.name), "</b><small>").concat(age != null ? "".concat(age, " ano").concat(age === 1 ? "" : "s", " · ") : "").concat(g ? g.name : "", '</small>\n    <span class="kstats"><span>★ ').concat(c.stars, "</span><span>💎 ").concat(c.gems, "</span></span>\n    <small>").concat(c.lessonsWeek, " ").concat(c.lessonsWeek === 1 ? "lição" : "lições", " na semana").concat(c.rateWeek != null ? " · ".concat(c.rateWeek, "% de primeira") : "", "</small>\n    <small>Hoje: ").concat(c.gemsToday, " de ").concat(c.limit, " 💎 · ").concat(agoTxt(c.lastPlayed), "</small></button>");
+  }
+  function addKidView() {
+    const F = fam(), A = F.add || (F.add = { mode: "link", gender: "f", grade: "1", mate: "estrela" });
+    return '<form class="card rules addkid" id="kidform"><h3>Adicionar filho</h3>\n    <div class="chips"><button type="button" class="chip" data-addmode="link" aria-pressed="'.concat(A.mode === "link", '">Já joga no Caderninho</button><button type="button" class="chip" data-addmode="create" aria-pressed="').concat(A.mode === "create", '">Criar o perfil agora</button></div>\n    <p class="hint">').concat(A.mode === "link" ? "Digite o nome e a data de nascimento que ele(a) usa para entrar no jogo." : "Os pais criam o perfil. Depois a criança entra tocando no nome e escolhendo a data de nascimento.", '</p>\n    <label>Nome<input id="kname" maxlength="20" autocomplete="off" value="').concat(esc(A.name || ""), '"></label><div class="steplabel">Data de nascimento</div>').concat(dobPicker("kdob", A.dob || ""), "\n    ").concat(A.mode === "create" ? '<div class="steplabel">É...</div><div class="chips"><button type="button" class="chip" data-addg="f" aria-pressed="'.concat(A.gender === "f", '">Menina</button><button type="button" class="chip" data-addg="m" aria-pressed="').concat(A.gender === "m", '">Menino</button></div>\n      <label>Ano na escola<select id="kgrade">').concat(GRADES.map((g) => '<option value="'.concat(g.id, '"').concat(A.grade === g.id ? " selected" : "", ">").concat(g.name, "</option>")).join(""), '</select></label>\n      <div class="steplabel">Personagem</div><div class="kmates">').concat(MATE_ORDER.map((k) => '<button type="button" class="kmate" data-addm="'.concat(k, '" aria-pressed="').concat(A.mate === k, '" title="').concat(esc(MATES[k].name), '">').concat(MATES[k].draw(), "</button>")).join(""), "</div>") : "", '\n    <p class="err" id="kerr" aria-live="polite"></p><div class="btnrow"><button class="btn" style="--c:var(--purple)" type="submit">').concat(A.mode === "link" ? "Colocar na família" : "Criar e colocar na família", '</button><button class="btn ghost" type="button" data-act="kidadd">Cancelar</button></div></form>');
+  }
+  function keepAdd() {
+    const F = fam(), A = F.add;
+    if (!A) return;
+    const n = document.getElementById("kname");
+    if (n) A.name = n.value;
+    const d = dobValue("kdob");
+    if (d && d !== "bad") A.dob = d;
+    const g = document.getElementById("kgrade");
+    if (g) A.grade = g.value;
+  }
   async function addKid() {
-    const n = document.getElementById("kname").value.trim(), dob = dobValue("kdob");
-    if (!n) return setErr("kerr", "Digite o nome.");
+    const F = fam(), A = F.add;
+    keepAdd();
+    const n = (A.name || "").trim(), dob = dobValue("kdob");
+    if (!NAME_OK(n)) return setErr("kerr", n ? "Use só letras no nome." : "Digite o nome.");
     if (dobErr(dob)) return setErr("kerr", dobErr(dob));
+    const body = { name: n, birthDate: dob };
+    if (A.mode === "create") body.profile = { gender: A.gender, grade: A.grade, mate: A.mate };
+    setErr("kerr", "Salvando...");
     try {
-      await famApi("/children", "POST", { name: n, birthDate: dob });
+      const r = await famApi("/children", "POST", body);
+      F.addOpen = false;
+      F.add = null;
+      F.kid = r.id;
       loadFamily();
     } catch (e) {
       setErr("kerr", e.status ? e.message : "Sem conexão agora.");
+    }
+  }
+  function kidSettingsView(c, r) {
+    if (!c) return "";
+    const F = fam();
+    return '<details class="card"'.concat(F.kidMsg || F.kidRemove === c.id ? " open" : "", "><summary><h3>Ajustes de ").concat(esc(c.name), '</h3></summary><form id="kidset" class="rules">\n    <label>Limite de diamantes por dia só para ').concat(esc(c.name), '<input id="klimit" type="number" min="0" max="1000" placeholder="O da família: ').concat(r.dailyGemLimit, '" value="').concat(c.gemLimit == null ? "" : c.gemLimit, '"></label>\n    <p class="hint">Deixe vazio para usar o limite da família (').concat(r.dailyGemLimit, ' por dia). Útil quando os irmãos têm idades diferentes.</p>\n    <p class="err ok" id="kserr" aria-live="polite">').concat(esc(F.kidMsg || ""), '</p>\n    <div class="btnrow"><button class="btn" style="--c:var(--purple)" type="submit">Salvar</button>').concat(F.kidRemove === c.id ? '<button class="btn" style="--c:var(--red)" type="button" data-kidrm="'.concat(esc(c.id), '">Confirmar: tirar da família</button>') : '<button class="btn ghost" type="button" data-kidrmask="'.concat(esc(c.id), '">Tirar da família</button>'), "</div>\n    ").concat(F.kidRemove === c.id ? '<p class="hint">'.concat(esc(c.name), " continua com o progresso e os diamantes, mas sai do relatório e não pode mais trocar diamantes até voltar para a família.</p>") : "", "</form></details>");
+  }
+  async function saveKid() {
+    const F = fam(), v = document.getElementById("klimit").value.trim();
+    const lim = v === "" ? null : Math.round(+v);
+    if (lim != null && !(lim >= 0 && lim <= 1e3)) return setErr("kserr", "Use um número de 0 a 1000.");
+    try {
+      await famApi("/children/" + encodeURIComponent(F.kid), "PATCH", { gemLimit: lim });
+      F.kidMsg = "Ajustes salvos!";
+      loadFamily();
+    } catch (e) {
+      setErr("kserr", e.status ? e.message : "Sem conexão agora.");
+    }
+  }
+  async function removeKid(id) {
+    const F = fam();
+    try {
+      await famApi("/children/" + encodeURIComponent(id), "DELETE");
+      F.kidRemove = null;
+      F.kid = null;
+      F.report = null;
+      loadFamily();
+    } catch (e) {
+      setErr("kserr", e.status ? e.message : "Sem conexão agora.");
     }
   }
   async function decide(id, action, btn) {
@@ -3321,7 +3417,44 @@ button.pill{border:0;cursor:pointer;box-shadow:0 3px 0 #9CC9E3}
       return true;
     }
     if (b.dataset.kid) {
+      const F = fam();
+      F.kidMsg = "";
+      F.kidRemove = null;
       loadReport(b.dataset.kid);
+      return true;
+    }
+    if (a === "kidadd") {
+      const F = fam();
+      keepAdd();
+      F.addOpen = !F.addOpen;
+      render();
+      return true;
+    }
+    if (b.dataset.addmode) {
+      keepAdd();
+      fam().add.mode = b.dataset.addmode;
+      render();
+      return true;
+    }
+    if (b.dataset.addg) {
+      keepAdd();
+      fam().add.gender = b.dataset.addg;
+      render();
+      return true;
+    }
+    if (b.dataset.addm) {
+      keepAdd();
+      fam().add.mate = b.dataset.addm;
+      render();
+      return true;
+    }
+    if (b.dataset.kidrmask) {
+      fam().kidRemove = b.dataset.kidrmask;
+      render();
+      return true;
+    }
+    if (b.dataset.kidrm) {
+      removeKid(b.dataset.kidrm);
       return true;
     }
     if (b.dataset.paid) {

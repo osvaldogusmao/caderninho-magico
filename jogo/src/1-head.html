@@ -534,6 +534,24 @@ button.pill{border:0;cursor:pointer;box-shadow:0 3px 0 #9CC9E3}
 .char .acc-twinkle.d2{animation-delay:-.7s}
 @keyframes twinkle{50%{opacity:.25}}
 .char .acc-back{opacity:.9}
+
+/* parents' area: the children side by side */
+.kids{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.kid{position:relative;border:0;background:var(--card);border-radius:22px;padding:12px;box-shadow:0 5px 0 var(--line);display:grid;justify-items:center;text-align:center;gap:3px;cursor:pointer;color:var(--ink);font:inherit}
+.kid.on{box-shadow:0 5px 0 var(--mc,var(--purple)),inset 0 0 0 3px var(--mc,var(--purple))}
+.kid .pic{width:84px}
+.kid b{font-family:var(--display);font-size:1.2rem}
+.kid small{color:var(--muted);font-weight:700}
+.kstats{display:flex;gap:10px;font-family:var(--display);font-weight:600}
+.kbadge{position:absolute;top:8px;right:8px;min-width:1.6em;height:1.6em;border-radius:999px;background:var(--red);color:#fff;font-weight:700;display:grid;place-items:center;font-size:.85rem}
+.kid.add{border:3px dashed var(--line);box-shadow:none;background:transparent;align-content:center;min-height:180px}
+.kid.add .plus{font-size:2.4rem;color:var(--purple);line-height:1}
+.rhead{margin:8px 0 0}
+.addkid select{font-family:var(--display);font-size:1.1rem;padding:.45em .7em;border-radius:14px;border:3px solid var(--line);background:var(--card);color:var(--ink)}
+.kmates{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px}
+.kmate{border:3px solid transparent;border-radius:16px;background:#F3F6FC;padding:4px;cursor:pointer}
+.kmate[aria-pressed="true"]{border-color:var(--purple);background:#EFE8FF}
+.err.ok{color:#17804D}
 </style>
 
 <div class="floaty" id="floaty" aria-hidden="true"></div>
